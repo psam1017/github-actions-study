@@ -1,0 +1,41 @@
+# Workflow Name : 하나의 yml 파일은 하나의 Workflow 를 의미한다.
+name: Github Actions 실행시켜보기
+
+# Event Triggers : 어떤 이벤트가 발생했을 때 Workflow 를 실행할 것인지 정의한다.
+on:
+  push:
+    branches:
+      - v0
+
+# Jobs : 하나의 Workflow 는 야러 개의 Job 을 가지며, 각 Job 은 병렬적으로 수행된다.
+jobs:
+  # Job Name : 각 Job 을 식별하기 위한 아이디
+  Print:
+    # Job 실행 환경 : 어떤 환경에서 Job 을 실행할 것인지 정의한다.
+    runs-on: ubuntu-latest
+
+    # Job 실행 순서 : Job 의 실행 순서를 정의한다.
+    steps:
+
+      # Step Name : 각 Step 을 식별하기 위한 아이디
+      # run 에서 실행할 명령어를 입력한다.
+      - name: Run one-line script
+        run: echo "Hello World"
+
+        # run 에서 |(파이프)를 사용하면 여러 줄의 명령어를 입력할 수 있다.
+      - name: Run multi-line script
+        run: |
+          echo "This is a multi-line script"
+          echo "It is working"
+
+        # github 의 환경변수를 출력할 수 있다.
+      - name: Print default environment variables
+        run: |
+          echo '$GITHUB_SHA : ' $GITHUB_SHA
+          echo '$GITHUB_REPOSITORY : ' $GITHUB_REPOSITORY
+
+        # Settings - Security - Secrets and variables - Actions - Variables - Repository variables 에서 설정한 값을 출력할 수 있다.
+      - name: Print custom environment variables
+        run: |
+          echo 'MY_NAME : ' ${{ secrets.MY_NAME }}
+          echo 'STUDY : ' ${{ secrets.STUDY }}
