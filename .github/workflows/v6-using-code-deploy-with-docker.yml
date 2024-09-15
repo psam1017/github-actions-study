@@ -1,0 +1,55 @@
+name: Deploy Using Code Deploy With Docker
+
+on:
+  push:
+    branches:
+      - v6
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout the source code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Build with Gradle
+        run: ./gradlew clean build
+
+      - name: Configure Aws credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ap-northeast-2
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build Docker image
+        run: docker build -t your-application-name .
+
+      - name: Tag Docker image
+        run: docker tag your-application-name ${{ steps.login-ecr.outputs.registry }}/your-application-name:latest
+
+      - name: Push Docker image
+        run: docker push ${{ steps.login-ecr.outputs.registry }}/your-application-name:latest
+
+      - name: Compress the built file
+        run: tar -czvf $GITHUB_SHA.tar.gz project.jar appspec.yml scripts
+
+      - name: Upload the built file to S3
+        run: aws s3 cp --region ap-northeast-2 ./$GITHUB_SHA.tar.gz s3://your-bucket/$GITHUB_SHA.tar.gz
+
+      - name: Deploy the built file to EC2 using CodeDeploy
+        run: aws deploy create-deployment
+          --application-name your-application-name
+          --deployment-config-name CodeDeployDefault.AllAtOnce
+          --deployment-group-name your-group-name
+          --s3-location bucket=your-bucket,bundleType=tgz,key=$GITHUB_SHA.tar.gz

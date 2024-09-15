@@ -1,0 +1,45 @@
+name: Deploy Using Code Deploy
+
+on:
+  push:
+    branches:
+      - v4
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout the source code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Build with Gradle
+        run: ./gradlew clean build
+
+      - name: Move the built file
+        run: mv ./build/libs/*SNAPSHOT.jar ./application.jar
+
+      - name: Compress the built file
+        run: tar -czvf $GITHUB_SHA.tar.gz project.jar appspec.yml scripts
+
+      - name: Configure Aws credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ap-northeast-2
+
+      - name: Upload the built file to S3
+        run: aws s3 cp --region ap-northeast-2 ./$GITHUB_SHA.tar.gz s3://your-bucket/$GITHUB_SHA.tar.gz
+
+      - name: Deploy the built file to EC2 using CodeDeploy
+        run: aws deploy create-deployment
+          --application-name your-application-name
+          --deployment-config-name CodeDeployDefault.AllAtOnce
+          --deployment-group-name your-group-name
+          --s3-location bucket=your-bucket,bundleType=tgz,key=$GITHUB_SHA.tar.gz

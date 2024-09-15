@@ -1,0 +1,50 @@
+name: Deploy Using SCP
+
+on:
+  push:
+    branches:
+      - v3
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout the source code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Build with Gradle
+        run: ./gradlew clean build
+
+      - name: Move the built file
+        run: mv ./build/libs/*SNAPSHOT.jar ./application.jar
+
+      - name: Transfer built file to EC2 using SCP
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USERNAME }}
+          key: ${{ secrets.EC2_PRIVATE_KEY }}
+          source: project.jar
+          target: ${{ secrets.EC2_PROJECT_PATH }}/to-be
+
+      - name: Connect to EC2 Using SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USERNAME }}
+          key: ${{ secrets.EC2_PRIVATE_KEY }}
+          script_stop: true
+          script: |
+            rm -rf ${{ secrets.EC2_PROJECT_PATH }}/current
+            mkdir ${{ secrets.EC2_PROJECT_PATH }}/current
+            mv ${{ secrets.EC2_PROJECT_PATH }}/to-be/application.jar ${{ secrets.EC2_PROJECT_PATH }}/current/application.jar
+            cd ${{ secrets.EC2_PROJECT_PATH }}/current
+            sudo fuser -k -n tcp 8080 || true
+            nohup java -jar project.jar >/dev/null 2>&1 & 
+            rm -rf ${{ secrets.EC2_PROJECT_PATH }}/to-be

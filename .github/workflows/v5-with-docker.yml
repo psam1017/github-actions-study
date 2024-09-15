@@ -1,0 +1,55 @@
+name: Deploy With Docker
+
+on:
+  push:
+    branches:
+      - v5
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout the source code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Build with Gradle
+        run: ./gradlew clean build
+
+      - name: Configure Aws credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ap-northeast-2
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build Docker image
+        run: docker build -t your-application-name .
+
+      - name: Tag Docker image
+        run: docker tag your-application-name ${{ steps.login-ecr.outputs.registry }}/your-application-name:latest
+
+      - name: Push Docker image
+        run: docker push ${{ steps.login-ecr.outputs.registry }}/your-application-name:latest
+
+      - name: Connect to EC2 Using SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USERNAME }}
+          key: ${{ secrets.EC2_PRIVATE_KEY }}
+          script_stop: true
+          script: |
+            docker stop your-application-name || true
+            docker rm your-application-name || true
+            docker pull ${{ steps.login-ecr.outputs.registry }}/your-application-name:latest
+            docker run -d --name your-application-name -p 8080:8080 ${{ steps.login-ecr.outputs.registry }}/your-application-name:latest

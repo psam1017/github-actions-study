@@ -1,0 +1,19 @@
+version: 0.0
+os: linux
+
+files:
+  # Configure files to be copied from S3 to the EC2 instance
+  - source: /
+    # Destination on the EC2 instance
+    destination: /home/ubuntu/your-directory
+
+permissions:
+  - object: /
+    owner: ubuntu
+    group: ubuntu
+
+hooks:
+  ApplicationStart:
+    - location: scripts/start-server.sh
+      timeout: 60
+      runas: ubuntu
