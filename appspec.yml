@@ -14,6 +14,8 @@ permissions:
 
 hooks:
   ApplicationStart:
+      # Run scripts/start-server-v1.sh when test v4-using-code-deploy.yml
+      # Run scripts/start-server-v2.sh when test v6-using-code-deploy-with-docker.yml
     - location: scripts/start-server.sh
       timeout: 60
       runas: ubuntu
